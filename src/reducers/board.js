@@ -208,24 +208,127 @@ function board(state = {}, action) {
             const { spots, gameDone } = state;
 
             if (!gameDone) {
-                const validSpots = [].concat
-                    .apply([], spots)
-                    .filter(x => x.validWhite);
+                let stillTurn = true;
+                let countTurn = 0;
+                let newSpots;
 
-                if (validSpots.length > 0) {
-                    const executed = validSpots.map(location => {
-                        const i = location.x;
-                        const j = location.y;
+                while (stillTurn) {
+                    let validSpots;
+                    if (countTurn === 0) {
+                        validSpots = [].concat
+                            .apply([], spots)
+                            .filter(x => x.validWhite);
+                    } else {
+                        validSpots = [].concat
+                            .apply([], newSpots)
+                            .filter(x => x.validWhite);
+                    }
 
-                        let possiblePaths = getPossiblePaths(
-                            i,
-                            j,
-                            "black",
-                            spots
-                        );
+                    if (validSpots.length > 0) {
+                        const executed = validSpots.map(location => {
+                            const i = location.x;
+                            const j = location.y;
+
+                            let possiblePaths = getPossiblePaths(
+                                i,
+                                j,
+                                "black",
+                                spots
+                            );
+
+                            // Initialize an array to store where tiles need to be flipped.
+                            let numberCreated = 0;
+
+                            possiblePaths.forEach(path => {
+                                // Set the counter for our steps so we can get all of the flipped coin locations. (back-tracking)
+                                let count = 1;
+
+                                // Variable to end the search.
+                                let end = false;
+
+                                // Get the next spot locations.
+                                let nextX = path.x + path.dir[0];
+                                let nextY = path.y + path.dir[1];
+
+                                while (!end) {
+                                    // Make sure we are still in the grid.
+                                    if (
+                                        nextX >= 0 &&
+                                        nextX < 8 &&
+                                        nextY >= 0 &&
+                                        nextY < 8
+                                    ) {
+                                        let nextColor;
+                                        if (countTurn === 0) {
+                                            nextColor = spots[nextX][nextY].color;
+                                        } else {
+                                            nextColor = newSpots[nextX][nextY].color;
+                                        }
+
+                                        if (nextColor === "white") {
+                                            // We know that we have a valid path here, so we need to
+                                            // back-track and push all of the locations we need to flip.
+                                            end = true;
+
+                                            let backX = nextX;
+                                            let backY = nextY;
+
+                                            for (let x = 0; x <= count; x++) {
+                                                backX = backX - path.dir[0];
+                                                backY = backY - path.dir[1];
+                                                numberCreated += 1;
+                                            }
+                                        } else if (nextColor === "empty") {
+                                            // Invalid, end search.
+                                            end = true;
+                                        } else {
+                                            // We can keep going, because we haven't hit an empty spot or the end.
+                                            count += 1;
+                                            nextX += path.dir[0];
+                                            nextY += path.dir[1];
+                                        }
+                                    } else {
+                                        end = true;
+                                    }
+                                }
+                            });
+
+                            return {
+                                i,
+                                j,
+                                numberCreated
+                            };
+                        });
+
+                        // Taken from https://stackoverflow.com/questions/11301438/return-index-of-greatest-value-in-an-array
+                        const indexOfMax = arr => {
+                            if (arr.length === 0) {
+                                return -1;
+                            }
+
+                            var max = arr[0].numberCreated;
+                            var maxIndex = 0;
+
+                            for (var i = 1; i < arr.length; i++) {
+                                if (arr[i].numberCreated > max) {
+                                    maxIndex = i;
+                                    max = arr[i];
+                                }
+                            }
+
+                            return maxIndex;
+                        };
+
+                        const bestMove = executed[indexOfMax(executed)];
+
+                        const { i, j } = bestMove;
+
+                        let possiblePaths;
+
+                        possiblePaths = countTurn > 0 ? getPossiblePaths(i, j, "black", newSpots) : getPossiblePaths(i, j, "black", spots);
 
                         // Initialize an array to store where tiles need to be flipped.
-                        let numberCreated = 0;
+                        let changeTiles = [];
 
                         possiblePaths.forEach(path => {
                             // Set the counter for our steps so we can get all of the flipped coin locations. (back-tracking)
@@ -246,7 +349,12 @@ function board(state = {}, action) {
                                     nextY >= 0 &&
                                     nextY < 8
                                 ) {
-                                    const nextColor = spots[nextX][nextY].color;
+                                    let nextColor;
+                                    if (countTurn === 0) {
+                                        nextColor = spots[nextX][nextY].color;
+                                    } else {
+                                        nextColor = newSpots[nextX][nextY].color;
+                                    }
 
                                     if (nextColor === "white") {
                                         // We know that we have a valid path here, so we need to
@@ -259,7 +367,10 @@ function board(state = {}, action) {
                                         for (let x = 0; x <= count; x++) {
                                             backX = backX - path.dir[0];
                                             backY = backY - path.dir[1];
-                                            numberCreated += 1;
+                                            changeTiles.push({
+                                                x: backX,
+                                                y: backY
+                                            });
                                         }
                                     } else if (nextColor === "empty") {
                                         // Invalid, end search.
@@ -276,186 +387,127 @@ function board(state = {}, action) {
                             }
                         });
 
-                        return {
-                            i,
-                            j,
-                            numberCreated
-                        };
-                    });
-
-                    // Taken from https://stackoverflow.com/questions/11301438/return-index-of-greatest-value-in-an-array
-                    const indexOfMax = arr => {
-                        if (arr.length === 0) {
-                            return -1;
-                        }
-
-                        var max = arr[0].numberCreated;
-                        var maxIndex = 0;
-
-                        for (var i = 1; i < arr.length; i++) {
-                            if (arr[i].numberCreated > max) {
-                                maxIndex = i;
-                                max = arr[i];
-                            }
-                        }
-
-                        return maxIndex;
-                    };
-
-                    const bestMove = executed[indexOfMax(executed)];
-
-                    const { i, j } = bestMove;
-
-                    let possiblePaths = getPossiblePaths(i, j, "black", spots);
-
-                    // Initialize an array to store where tiles need to be flipped.
-                    let changeTiles = [];
-
-                    possiblePaths.forEach(path => {
-                        // Set the counter for our steps so we can get all of the flipped coin locations. (back-tracking)
-                        let count = 1;
-
-                        // Variable to end the search.
-                        let end = false;
-
-                        // Get the next spot locations.
-                        let nextX = path.x + path.dir[0];
-                        let nextY = path.y + path.dir[1];
-
-                        while (!end) {
-                            // Make sure we are still in the grid.
-                            if (
-                                nextX >= 0 &&
-                                nextX < 8 &&
-                                nextY >= 0 &&
-                                nextY < 8
-                            ) {
-                                const nextColor = spots[nextX][nextY].color;
-
-                                if (nextColor === "white") {
-                                    // We know that we have a valid path here, so we need to
-                                    // back-track and push all of the locations we need to flip.
-                                    end = true;
-
-                                    let backX = nextX;
-                                    let backY = nextY;
-
-                                    for (let x = 0; x <= count; x++) {
-                                        backX = backX - path.dir[0];
-                                        backY = backY - path.dir[1];
-                                        changeTiles.push({
-                                            x: backX,
-                                            y: backY
-                                        });
+                        // Here we are just creating a new spots 2-D array with flipped coins.
+                        if (countTurn === 0) {
+                            newSpots = spots.map((row, i) => {
+                                return row.map((spot, j) => {
+                                    if (
+                                        changeTiles.filter(
+                                            tile => tile.x === i && tile.y === j
+                                        ).length > 0
+                                    ) {
+                                        spot.color = "white";
+                                        return spot;
+                                    } else {
+                                        return spot;
                                     }
-                                } else if (nextColor === "empty") {
-                                    // Invalid, end search.
-                                    end = true;
-                                } else {
-                                    // We can keep going, because we haven't hit an empty spot or the end.
-                                    count += 1;
-                                    nextX += path.dir[0];
-                                    nextY += path.dir[1];
-                                }
-                            } else {
-                                end = true;
-                            }
+                                });
+                            });
+                        } else {
+                            newSpots = newSpots.map((row, i) => {
+                                return row.map((spot, j) => {
+                                    if (
+                                        changeTiles.filter(
+                                            tile => tile.x === i && tile.y === j
+                                        ).length > 0
+                                    ) {
+                                        spot.color = "white";
+                                        return spot;
+                                    } else {
+                                        return spot;
+                                    }
+                                });
+                            });
                         }
-                    });
 
-                    // Here we are just creating a new spots 2-D array with flipped coins.
-                    let newSpots = spots.map((row, i) => {
-                        return row.map((spot, j) => {
-                            if (
-                                changeTiles.filter(
-                                    tile => tile.x === i && tile.y === j
-                                ).length > 0
-                            ) {
-                                spot.color = "white";
-                                return spot;
-                            } else {
-                                return spot;
-                            }
+                        // Apply checkValid to all empty spots.
+                        newSpots.forEach((row, i) => {
+                            row.forEach((spot, j) => {
+                                spot.validBlack =
+                                    spot.color !== "empty"
+                                        ? false
+                                        : checkValid(i, j, "black", newSpots);
+                                spot.validWhite =
+                                    spot.color !== "empty"
+                                        ? false
+                                        : checkValid(i, j, "white", newSpots);
+                            });
                         });
-                    });
 
-                    // Apply checkValid to all empty spots.
-                    newSpots.forEach((row, i) => {
-                        row.forEach((spot, j) => {
-                            spot.validBlack =
-                                spot.color !== "empty"
-                                    ? false
-                                    : checkValid(i, j, "black", newSpots);
-                            spot.validWhite =
-                                spot.color !== "empty"
-                                    ? false
-                                    : checkValid(i, j, "white", newSpots);
-                        });
-                    });
+                        // Switch turns.
+                        let turn = "black";
 
-                    // Switch turns.
-                    let turn = "black";
-
-                    // We need to make sure the next turn can move.
-                    const currentCantMove =
-                        newSpots.filter(row => {
-                            return (
-                                row.filter(spot => {
-                                    return spot.validBlack;
-                                }).length > 0
-                            );
-                        }).length === 0;
-
-                    // Assume the other player can move.
-                    let otherCantMove = false;
-
-                    // If the player can't move, we need to check the other player.
-                    if (currentCantMove) {
-                        otherCantMove =
+                        // We need to make sure the next turn can move.
+                        const currentCantMove =
                             newSpots.filter(row => {
                                 return (
                                     row.filter(spot => {
-                                        return spot.validWhite;
+                                        return spot.validBlack;
                                     }).length > 0
                                 );
                             }).length === 0;
-                    }
 
-                    // If the other player can't move, then the game is over.
+                        // Assume the other player can move.
+                        let otherCantMove = false;
 
-                    // New state to return.
-                    return {
-                        spots: newSpots,
-                        turn,
-                        gameDone: otherCantMove
-                    };
-                } else {
-                    // Switch turns.
-                    let turn = "black";
+                        // If the player can't move, we need to check the other player.
+                        if (currentCantMove) {
+                            otherCantMove =
+                                newSpots.filter(row => {
+                                    return (
+                                        row.filter(spot => {
+                                            return spot.validWhite;
+                                        }).length > 0
+                                    );
+                                }).length === 0;
+                        } else {
+                            return {
+                                ...state,
+                                spots: newSpots,
+                                turn
+                            }
+                        }
 
-                    // We need to make sure the next turn can move.
-                    const currentCantMove =
-                        spots.filter(row => {
-                            return (
-                                row.filter(spot => {
-                                    return spot.validBlack;
-                                }).length > 0
-                            );
-                        }).length === 0;
+                        // If the other player can't move, then the game is over.
 
-                    if (currentCantMove) {
-                        return {
-                            ...state,
-                            gameDone: true
-                        };
+                        if (otherCantMove) {
+                            // New state to return.
+                            return {
+                                spots: newSpots,
+                                turn,
+                                gameDone: otherCantMove
+                            };
+                        }
                     } else {
-                        return {
-                            ...state,
-                            spots,
-                            turn
-                        };
+                        // Switch turns.
+                        let turn = "black";
+
+                        // We need to make sure the next turn can move.
+                        const currentCantMove =
+                            spots.filter(row => {
+                                return (
+                                    row.filter(spot => {
+                                        return spot.validBlack;
+                                    }).length > 0
+                                );
+                            }).length === 0;
+
+                        if (currentCantMove) {
+                            return {
+                                ...state,
+                                gameDone: true
+                            };
+                        } else {
+                            return {
+                                ...state,
+                                spots,
+                                turn
+                            };
+                        }
                     }
                 }
+
+                break;
             } else {
                 return state;
             }
