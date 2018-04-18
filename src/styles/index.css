@@ -16,22 +16,6 @@ p {
     font-family: monospace;
 }
 
-.even-row:nth-child(odd) {
-    background-color: #fff;
-}
-
-.even-row:nth-child(even) {
-    background-color: #ccc;
-}
-
-.odd-row:nth-child(odd) {
-    background-color: #ccc;
-}
-
-.odd-row:nth-child(even) {
-    background-color: #fff;
-}
-
 .spot {
     cursor: pointer;
     outline: none;
@@ -42,6 +26,11 @@ p {
     width: 2em;
     background-color: #a3be8c;
     z-index: 1000;
+    transition: 0.2s ease-in;
+}
+
+.spot:hover {
+    background-color: #95AD80;
 }
 
 .spot svg {
@@ -52,12 +41,4 @@ p {
 
 .spot:focus {
     outline: none;
-}
-
-.white {
-    color: #eceff4;
-}
-
-.black {
-    color: #2e3440;
 }
